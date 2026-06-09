@@ -11,7 +11,7 @@ clusters simulated locally using two `kind` clusters.
 |---|---|
 | Language | Python 3.11+ |
 | Orchestration | LangGraph (graph runs in the **private** cluster) |
-| Retrieval | Chroma BM25 (separate indexes per cluster; no dense embeddings in V1) |
+| Retrieval | Chroma dense retrieval using `all-MiniLM-L6-v2` via the built-in ONNX embedding function (separate indexes per cluster) |
 | Generation | `Qwen2.5-0.5B-Instruct` via `transformers` (CPU) |
 | Public worker framework | FastAPI |
 | Cross-cluster link | Single HTTPS endpoint over **mTLS** (self-signed CA; certs as K8s Secrets) |

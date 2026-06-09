@@ -1,0 +1,23 @@
+ACME Corp — Employee Handbook (CONFIDENTIAL — INTERNAL USE ONLY)
+
+Compensation and Benefits
+
+All full-time employees are eligible for the ACME performance bonus program. The annual
+bonus target is 15% of base salary for individual contributors and 25% for senior staff.
+Bonus payouts are subject to individual performance rating and company financial results.
+
+Remote Work Policy
+
+Employees may work remotely up to three days per week with manager approval. Employees
+handling data classified as RESTRICTED must work from a company-approved secure location.
+
+Data Handling
+
+Customer data must never be transmitted to third-party services without explicit legal
+review. Internal project data classified CONFIDENTIAL must be stored on company-managed
+infrastructure only. Any exception requires written approval from the Chief Security Officer.
+
+Leave Policy
+
+Employees accrue 20 days of paid time off (PTO) per year. PTO does not roll over beyond
+5 days at calendar year end. Medical leave follows applicable local regulations.
