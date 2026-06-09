@@ -43,6 +43,10 @@ load-images:
 deploy:
 	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) apply -f manifests/private/
 	kubectl --kubeconfig $(KUBECONFIG_PUBLIC)  apply -f manifests/public/
+	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) rollout restart deployment/orchestrator
+	kubectl --kubeconfig $(KUBECONFIG_PUBLIC)  rollout restart deployment/public-worker
+	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) rollout status  deployment/orchestrator
+	kubectl --kubeconfig $(KUBECONFIG_PUBLIC)  rollout status  deployment/public-worker
 
 test:
 	ruff check .
