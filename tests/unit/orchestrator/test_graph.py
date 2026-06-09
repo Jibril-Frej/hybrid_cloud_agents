@@ -1,3 +1,5 @@
+"""Unit tests for the LangGraph orchestration graph."""
+
 from unittest.mock import MagicMock, patch
 
 import orchestrator.graph as graph_mod
@@ -20,6 +22,7 @@ def _make_mock_http(summary="public summary"):
 
 
 def test_graph_returns_answer():
+    """build_graph().invoke() returns a dict containing the synthesizer's answer."""
     mock_cls, _ = _make_mock_http()
     with (
         patch.object(graph_mod, "httpx") as mock_httpx,
@@ -34,10 +37,12 @@ def test_graph_returns_answer():
 
 
 def test_graph_passes_both_contexts_to_synthesizer():
+    """The graph passes both the public summary and private chunks to the synthesizer."""
     mock_cls, _ = _make_mock_http(summary="pub summary")
     synth_calls = []
 
     def capture_synth(query, public_summary, private_chunks):
+        """Capture synthesizer arguments for assertion."""
         synth_calls.append({"query": query, "pub": public_summary, "priv": private_chunks})
         return "answer"
 
@@ -55,9 +60,11 @@ def test_graph_passes_both_contexts_to_synthesizer():
 
 
 def test_graph_degrades_gracefully_when_public_worker_fails():
+    """The graph continues with an empty public summary when the public worker raises."""
     synth_calls = []
 
     def capture_synth(query, public_summary, private_chunks):
+        """Capture synthesizer arguments for assertion."""
         synth_calls.append({"pub": public_summary, "priv": private_chunks})
         return "private-only answer"
 
@@ -75,6 +82,5 @@ def test_graph_degrades_gracefully_when_public_worker_fails():
         result = build_graph().invoke({"query": "q"})
 
     assert result["answer"] == "private-only answer"
-    # Public summary is empty string when the public worker fails.
     assert synth_calls[0]["pub"] == ""
     assert synth_calls[0]["priv"] == ["priv chunk"]

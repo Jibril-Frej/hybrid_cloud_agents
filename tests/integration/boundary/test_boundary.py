@@ -18,9 +18,11 @@ class _FakeHttpClient:
     """Captures every outbound HTTP call and returns a canned public summary."""
 
     def __init__(self, received: list):
+        """Initialise with a mutable list that will collect every outbound payload."""
         self._received = received
 
     def post(self, url, *, json=None, **kwargs):
+        """Record the JSON payload and return a canned successful response."""
         self._received.append(json)
         resp = MagicMock()
         resp.json.return_value = {"summary": "public context summary"}
@@ -28,13 +30,15 @@ class _FakeHttpClient:
         return resp
 
     def __enter__(self):
+        """Support use as a context manager."""
         return self
 
     def __exit__(self, *args):
-        pass
+        """No-op context-manager exit."""
 
 
 def test_only_query_crosses_the_boundary():
+    """Outbound payload to the public worker must be exactly {query: <query string>}."""
     received = []
 
     with (
@@ -56,6 +60,7 @@ def test_only_query_crosses_the_boundary():
 
 
 def test_private_marker_never_appears_in_outbound_payload():
+    """Private document content must never appear anywhere in the outbound HTTP payload."""
     received = []
 
     with (
@@ -80,6 +85,7 @@ def test_private_marker_never_appears_in_outbound_payload():
 
 
 def test_query_string_is_sent_verbatim():
+    """The query string is forwarded to the public worker without modification."""
     received = []
     query = "what are the security procedures for incident response?"
 
