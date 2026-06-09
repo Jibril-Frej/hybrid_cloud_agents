@@ -15,6 +15,7 @@ The trust-boundary invariant is enforced here:
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, TypedDict
 
@@ -23,6 +24,8 @@ import httpx
 from common.models import PublicWorkerRequest, PublicWorkerResponse
 from orchestrator.retriever import retrieve as _private_retrieve
 from orchestrator.synthesizer import synthesize as _synthesize
+
+log = logging.getLogger(__name__)
 
 
 class AgentState(TypedDict, total=False):
@@ -53,6 +56,7 @@ def receive_query(state: AgentState) -> dict:
     Returns:
         A dict with the ``query`` key preserved for downstream nodes.
     """
+    log.info("[receive_query] query=%r", state["query"])
     return {"query": state["query"]}
 
 
@@ -82,13 +86,16 @@ def public_retrieve(state: AgentState) -> dict:
     if ca:
         mtls_kwargs["verify"] = ca
 
+    log.info("[public_retrieve] calling public worker at %s (mTLS=%s)", url, bool(cert))
     try:
         with httpx.Client(**mtls_kwargs, timeout=30.0) as client:
             body = PublicWorkerRequest(query=query).model_dump()
             resp = client.post(f"{url}/retrieve", json=body)
             resp.raise_for_status()
             summary = PublicWorkerResponse(**resp.json()).summary
+        log.info("[public_retrieve] received summary (%d chars)", len(summary))
     except Exception:  # pylint: disable=broad-exception-caught  # intentional graceful degradation
+        log.warning("[public_retrieve] public worker unreachable — continuing with empty summary")
         summary = ""
 
     return {"public_summary": summary}
@@ -104,7 +111,9 @@ def private_retrieve(state: AgentState) -> dict:
         A dict with ``private_chunks`` set to the list of retrieved document
         strings.
     """
+    log.info("[private_retrieve] querying private Chroma index")
     chunks = _private_retrieve(state["query"])
+    log.info("[private_retrieve] found %d chunk(s)", len(chunks))
     return {"private_chunks": chunks}
 
 
@@ -117,11 +126,17 @@ def synthesize(state: AgentState) -> dict:
     Returns:
         A dict with ``answer`` set to the generated response string.
     """
+    log.info(
+        "[synthesize] running local model (public_summary=%d chars, private_chunks=%d)",
+        len(state.get("public_summary", "")),
+        len(state.get("private_chunks", [])),
+    )
     answer = _synthesize(
         query=state["query"],
         public_summary=state.get("public_summary", ""),
         private_chunks=state.get("private_chunks", []),
     )
+    log.info("[synthesize] answer generated (%d chars)", len(answer))
     return {"answer": answer}
 
 

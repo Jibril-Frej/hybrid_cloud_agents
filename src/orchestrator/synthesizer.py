@@ -4,10 +4,13 @@ Synthesis **always** runs on the private cluster because the prompt contains
 private chunks.  The public worker is never involved in synthesis.
 """
 
+import logging
 import os
 from functools import lru_cache
 
 from transformers import pipeline as hf_pipeline
+
+log = logging.getLogger(__name__)
 
 MODEL_NAME = os.environ.get("SYNTHESIS_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
 
@@ -19,13 +22,16 @@ def _get_pipeline():
     The result is cached so the model is loaded only once per process.
     Override ``SYNTHESIS_MODEL`` env var to use a different checkpoint.
     """
-    return hf_pipeline(
+    log.info("Loading synthesis model: %s", MODEL_NAME)
+    pipe = hf_pipeline(
         "text-generation",
         model=MODEL_NAME,
         device="cpu",
         max_new_tokens=512,
         do_sample=False,
     )
+    log.info("Synthesis model loaded")
+    return pipe
 
 
 def synthesize(query: str, public_summary: str, private_chunks: list[str]) -> str:
