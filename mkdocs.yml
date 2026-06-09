@@ -1,0 +1,15 @@
+site_name: Hybrid Cloud Agents
+site_description: LangGraph RAG agent spanning private on-prem and public cloud clusters
+repo_url: https://github.com/Jibril-Frej/hybrid_cloud_agents
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: indigo
+
+nav:
+  - Home: index.md
+  - V1 Spec: v1-spec.md
+
+docs_dir: docs
