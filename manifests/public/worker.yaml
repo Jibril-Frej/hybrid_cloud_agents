@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: public-worker
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: public-worker
+  template:
+    metadata:
+      labels:
+        app: public-worker
+    spec:
+      containers:
+        - name: public-worker
+          image: hybrid-public:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PUBLIC_CHROMA_PATH
+              value: "/data/chroma/public"
+          volumeMounts:
+            - name: mtls-certs
+              mountPath: /certs
+              readOnly: true
+            - name: chroma-data
+              mountPath: /data/chroma
+      volumes:
+        - name: mtls-certs
+          secret:
+            secretName: mtls-certs-public
+        - name: chroma-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-worker
+  namespace: default
+spec:
+  selector:
+    app: public-worker
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
