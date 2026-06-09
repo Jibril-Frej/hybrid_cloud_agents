@@ -13,6 +13,10 @@ spec:
       labels:
         app: orchestrator
     spec:
+      hostAliases:
+        - ip: "0.0.0.0"       # patched to the public cluster node IP by make deploy
+          hostnames:
+            - "public-worker"
       containers:
         - name: orchestrator
           image: hybrid-private:latest
@@ -21,7 +25,7 @@ spec:
             - containerPort: 8080
           env:
             - name: PUBLIC_WORKER_URL
-              value: "https://public-worker.default.svc.cluster.local:8080"
+              value: "https://public-worker:30080"
             - name: PUBLIC_WORKER_CERT
               value: "/certs/client.crt"
             - name: PUBLIC_WORKER_KEY

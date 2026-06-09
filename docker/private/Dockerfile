@@ -14,4 +14,6 @@ ENV PYTHONPATH=/app/src
 
 EXPOSE 8080
 
-CMD ["uvicorn", "orchestrator.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Seed the private Chroma index from the bundled data files on every start.
+# The emptyDir volume is fresh each time, so ingest must run before the server.
+CMD ["sh", "-c", "python -m private.ingest && uvicorn orchestrator.main:app --host 0.0.0.0 --port 8080"]

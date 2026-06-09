@@ -3,6 +3,11 @@
 KUBECONFIG_PRIVATE := kubeconfig-private.yaml
 KUBECONFIG_PUBLIC  := kubeconfig-public.yaml
 
+# IP of the public cluster's kind node — reachable from the private cluster
+# because both run on the same Docker bridge network.
+PUBLIC_NODE_IP := $(shell kubectl --kubeconfig $(KUBECONFIG_PUBLIC) get nodes \
+	-o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null)
+
 clusters-up:
 	kind create cluster --name private --kubeconfig $(KUBECONFIG_PRIVATE)
 	kind create cluster --name public  --kubeconfig $(KUBECONFIG_PUBLIC)
@@ -43,6 +48,10 @@ load-images:
 deploy:
 	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) apply -f manifests/private/
 	kubectl --kubeconfig $(KUBECONFIG_PUBLIC)  apply -f manifests/public/
+	# Patch the orchestrator's hostAlias so 'public-worker' resolves to the
+	# public cluster's node IP (cross-cluster DNS doesn't work with kind).
+	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) patch deployment orchestrator \
+		-p '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"$(PUBLIC_NODE_IP)","hostnames":["public-worker"]}]}}}}'
 	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) rollout restart deployment/orchestrator
 	kubectl --kubeconfig $(KUBECONFIG_PUBLIC)  rollout restart deployment/public-worker
 	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) rollout status  deployment/orchestrator
