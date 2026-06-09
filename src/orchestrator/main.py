@@ -13,22 +13,24 @@ from fastapi import FastAPI, HTTPException
 from common.models import OrchestratorRequest, OrchestratorResponse
 from orchestrator.graph import graph
 
-logging.config.dictConfig({
-    "version": 1,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            "datefmt": "%Y-%m-%dT%H:%M:%S",
-        }
-    },
-    "handlers": {
-        "stdout": {
-            "class": "logging.StreamHandler",
-            "formatter": "default",
-        }
-    },
-    "root": {"level": "INFO", "handlers": ["stdout"]},
-})
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt": "%Y-%m-%dT%H:%M:%S",
+            }
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["stdout"]},
+    }
+)
 
 log = logging.getLogger(__name__)
 

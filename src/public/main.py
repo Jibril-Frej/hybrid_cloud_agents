@@ -14,22 +14,24 @@ from common.models import PublicWorkerRequest, PublicWorkerResponse
 from public.retriever import retrieve
 from public.summarizer import summarize
 
-logging.config.dictConfig({
-    "version": 1,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            "datefmt": "%Y-%m-%dT%H:%M:%S",
-        }
-    },
-    "handlers": {
-        "stdout": {
-            "class": "logging.StreamHandler",
-            "formatter": "default",
-        }
-    },
-    "root": {"level": "INFO", "handlers": ["stdout"]},
-})
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "datefmt": "%Y-%m-%dT%H:%M:%S",
+            }
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["stdout"]},
+    }
+)
 
 log = logging.getLogger(__name__)
 
