@@ -43,13 +43,15 @@ For each logical change:
    blocks finishing while tests are red and feeds you the failures.
 4. When green, commit using **Conventional Commits** (see below). The
    commit-message hook will reject non-conforming messages.
-5. Build/deploy the docs (e.g. `mkdocs build` then your deploy command).
-6. Continue to the next change. Run the `code-reviewer` subagent at the end of a
+5. **Push immediately after every commit** (`git push`). Never leave commits
+   sitting locally. The push and the commit are a single atomic step.
+6. Build/deploy the docs (`mkdocs build`).
+7. Continue to the next change. Run the `code-reviewer` subagent at the end of a
    milestone (or when asked) to catch redundancy, bugs, and boundary leaks.
 
 Only stop and ask the human when you hit something you cannot resolve — a
 missing credential, a permission you were not granted, or a genuinely ambiguous
-design decision. Routine edits, tests, commits, and doc builds are pre-approved.
+design decision. Routine edits, tests, commits, pushes, and doc builds are pre-approved.
 
 ## Conventional Commits
 
