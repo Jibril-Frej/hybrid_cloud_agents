@@ -1,4 +1,4 @@
-.PHONY: clusters-up clusters-down certs seed build deploy test test-e2e dev
+.PHONY: clusters-up clusters-down certs load-certs seed build load-images deploy test test-e2e dev
 
 KUBECONFIG_PRIVATE := kubeconfig-private.yaml
 KUBECONFIG_PUBLIC  := kubeconfig-public.yaml
@@ -14,13 +14,31 @@ clusters-down:
 certs:
 	bash certs/gen-certs.sh
 
+# Push mTLS certs into each cluster as Kubernetes Secrets.
+load-certs:
+	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) create secret generic mtls-certs-private \
+		--from-file=ca.crt=certs/ca.crt \
+		--from-file=client.crt=certs/client.crt \
+		--from-file=client.key=certs/client.key \
+		--dry-run=client -o yaml | kubectl --kubeconfig $(KUBECONFIG_PRIVATE) apply -f -
+	kubectl --kubeconfig $(KUBECONFIG_PUBLIC) create secret generic mtls-certs-public \
+		--from-file=ca.crt=certs/ca.crt \
+		--from-file=server.crt=certs/server.crt \
+		--from-file=server.key=certs/server.key \
+		--dry-run=client -o yaml | kubectl --kubeconfig $(KUBECONFIG_PUBLIC) apply -f -
+
 seed:
 	PYTHONPATH=src python -m private.ingest
 	PYTHONPATH=src python -m public.ingest
 
 build:
-	docker build -t hybrid-private -f docker/private/Dockerfile .
-	docker build -t hybrid-public  -f docker/public/Dockerfile  .
+	docker build -t hybrid-private:latest -f docker/private/Dockerfile .
+	docker build -t hybrid-public:latest  -f docker/public/Dockerfile  .
+
+# Load locally-built images into the kind clusters (bypasses a registry).
+load-images:
+	kind load docker-image hybrid-private:latest --name private
+	kind load docker-image hybrid-public:latest  --name public
 
 deploy:
 	kubectl --kubeconfig $(KUBECONFIG_PRIVATE) apply -f manifests/private/
@@ -34,4 +52,4 @@ test:
 test-e2e:
 	pytest tests/integration/e2e/ -q
 
-dev: clusters-up certs seed deploy
+dev: clusters-up certs load-certs seed build load-images deploy

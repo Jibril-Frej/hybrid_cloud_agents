@@ -148,11 +148,19 @@ make clusters-up
 # 2. generate mTLS certificates (self-signed CA)
 make certs
 
-# 3. seed both Chroma indexes from data/
+# 3. push certs into each cluster as Kubernetes Secrets
+make load-certs
+
+# 4. seed both Chroma indexes from data/
 make seed
 
-# 4. build Docker images and apply Kubernetes manifests
+# 5. build Docker images
 make build
+
+# 6. load images into kind (bypasses a registry)
+make load-images
+
+# 7. apply Kubernetes manifests
 make deploy
 ```
 
