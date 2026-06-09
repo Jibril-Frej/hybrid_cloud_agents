@@ -1,4 +1,7 @@
 {
+  "env": {
+    "MAX_THINKING_TOKENS": "10000"
+  },
   "permissions": {
     "allow": [
       "Read",
@@ -25,7 +28,11 @@
       "Bash(docker:*)",
       "Bash(kind:*)",
       "Bash(k3d:*)",
-      "Bash(kubectl:*)"
+      "Bash(kubectl:*)",
+      "Bash(PYTHONPATH=src pylint src/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
+      "Bash(PYTHONPATH=src pylint src/ tests/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
+      "Bash(PYTHONPATH=src pylint tests/ --disable=all --enable=C0114,C0115,C0116)",
+      "Bash(PYTHONPATH=src python -m pytest tests/unit/ tests/integration/boundary/ -q)"
     ],
     "deny": [
       "Read(./.env)",
@@ -36,9 +43,6 @@
       "Bash(rm -rf:*)"
     ],
     "defaultMode": "acceptEdits"
-  },
-  "env": {
-    "MAX_THINKING_TOKENS": "10000"
   },
   "hooks": {
     "PreToolUse": [

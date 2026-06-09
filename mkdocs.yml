@@ -8,8 +8,23 @@ theme:
     scheme: default
     primary: indigo
 
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            docstring_style: google
+
 nav:
   - Home: index.md
   - V1 Spec: v1-spec.md
+  - API Reference:
+      - Wire models: api/common.md
+      - Public worker: api/public.md
+      - Orchestrator: api/orchestrator.md
+      - Private ingest: api/private.md
 
 docs_dir: docs
