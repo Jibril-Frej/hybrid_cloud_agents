@@ -94,8 +94,8 @@ def public_retrieve(state: AgentState) -> dict:
             resp.raise_for_status()
             summary = PublicWorkerResponse(**resp.json()).summary
         log.info("[public_retrieve] received summary (%d chars)", len(summary))
-    except Exception:  # pylint: disable=broad-exception-caught  # intentional graceful degradation
-        log.warning("[public_retrieve] public worker unreachable — continuing with empty summary")
+    except Exception as exc:  # pylint: disable=broad-exception-caught  # intentional graceful degradation
+        log.warning("[public_retrieve] unreachable (%s) — continuing with empty summary", exc)
         summary = ""
 
     return {"public_summary": summary}
