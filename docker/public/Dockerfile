@@ -2,14 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
+# Install dependencies first — this layer is cached until requirements.txt changes.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy manifest and lockfile. The dep-install layer is only re-run when
-# pyproject.toml or uv.lock changes (i.e. a dependency is added/removed).
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --system
-
-# Source and data only invalidate the fast layers below.
+# Source and data are copied after so code changes don't bust the dep cache.
 COPY src/ src/
 COPY data/public/ data/public/
 
