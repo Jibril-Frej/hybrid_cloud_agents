@@ -1,4 +1,4 @@
-.PHONY: clusters-up clusters-down certs load-certs seed build load-images deploy test test-e2e dev
+.PHONY: clusters-up clusters-down certs load-certs seed build load-images deploy test test-e2e dev lock
 
 KUBECONFIG_PRIVATE := kubeconfig-private.yaml
 KUBECONFIG_PUBLIC  := kubeconfig-public.yaml
@@ -26,6 +26,10 @@ load-certs:
 		--from-file=server.crt=certs/server.crt \
 		--from-file=server.key=certs/server.key \
 		--dry-run=client -o yaml | kubectl --kubeconfig $(KUBECONFIG_PUBLIC) apply -f -
+
+# Regenerate uv.lock after adding or removing a dependency in pyproject.toml.
+lock:
+	uv lock
 
 seed:
 	PYTHONPATH=src python -m private.ingest

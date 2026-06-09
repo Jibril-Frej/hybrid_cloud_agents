@@ -4,10 +4,10 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-# Copy only the manifest and install dependencies (not the project source).
-# This heavy layer is cached until pyproject.toml changes.
-COPY pyproject.toml .
-RUN uv pip install --system --no-cache --no-install-project .
+# Copy manifest and lockfile. The dep-install layer is only re-run when
+# pyproject.toml or uv.lock changes (i.e. a dependency is added/removed).
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --system
 
 # Source and data only invalidate the fast layers below.
 COPY src/ src/
