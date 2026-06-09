@@ -2,12 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies first so this heavy layer is cached independently of
-# source changes. It only re-runs when requirements.txt changes.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir uv
 
-# Source and data invalidate only the fast layers below.
+# Copy only the manifest and install dependencies (not the project source).
+# This heavy layer is cached until pyproject.toml changes.
+COPY pyproject.toml .
+RUN uv pip install --system --no-cache --no-install-project .
+
+# Source and data only invalidate the fast layers below.
 COPY src/ src/
 COPY data/private/ data/private/
 
