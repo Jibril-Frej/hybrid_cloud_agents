@@ -1,0 +1,45 @@
+# Orchestrator — runs in the PRIVATE cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  labels:
+    app: orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      # kind has no cross-cluster DNS. This placeholder IP is patched in by
+      # `make deploy` once the public cluster's node IP is known.
+      hostAliases:
+        - ip: "0.0.0.0"
+          hostnames:
+            - "public-cluster"
+      containers:
+        - name: orchestrator
+          image: orchestrator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PUBLIC_WORKER_URL
+              value: "http://public-cluster:30081/query"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+spec:
+  type: NodePort
+  selector:
+    app: orchestrator
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080

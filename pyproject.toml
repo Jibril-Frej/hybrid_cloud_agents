@@ -29,6 +29,10 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "-m 'not e2e'"
+markers = [
+    "e2e: end-to-end tests against live kind clusters (manual only, run via `make test-e2e`)",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,39 @@
+# Public worker — runs in the PUBLIC cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: public-worker
+  labels:
+    app: public-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: public-worker
+  template:
+    metadata:
+      labels:
+        app: public-worker
+    spec:
+      containers:
+        - name: public-worker
+          image: public-worker:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+---
+# Exposed via NodePort: kind has no cross-cluster DNS, so the orchestrator
+# reaches this service through the public cluster's node IP (see
+# manifests/private/deployment.yaml hostAliases, patched in by `make deploy`).
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-worker
+spec:
+  type: NodePort
+  selector:
+    app: public-worker
+  ports:
+    - port: 8001
+      targetPort: 8001
+      nodePort: 30081
