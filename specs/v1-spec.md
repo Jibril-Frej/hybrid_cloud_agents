@@ -14,6 +14,7 @@ cheap.
 |---|---|
 | Language | Python 3.11+ |
 | Environment / dependency management | `uv` (`uv venv`, `uv sync`, `uv.lock`) |
+| Project manifest | `pyproject.toml` — `[project]` deps (`fastapi`, `uvicorn`, `httpx`, `pydantic`), dev deps (`pytest`, `ruff`, `mkdocs`), `[tool.ruff]`, `[tool.pytest.ini_options]` |
 | Web framework | FastAPI + uvicorn |
 | Cross-cluster transport | Plain HTTP (no mTLS — see [v2-spec.md](v2-spec.md)) |
 | Packaging | Docker images + plain Kubernetes YAML manifests |
@@ -68,6 +69,8 @@ docker/
   private/             # Dockerfile: orchestrator only
   public/              # Dockerfile: public worker only
 specs/
+pyproject.toml         # project manifest + uv/ruff/pytest config
+uv.lock
 ```
 
 ## Cross-cluster networking
