@@ -1,12 +1,24 @@
 # Project: Hybrid Cloud Agents — incremental POC
 
-A LangGraph agent answers questions using both public (cloud) and private
-(on-prem) data, while guaranteeing that private data never leaves the premises.
-The project is developed as a series of versioned prototypes.
+## Long-term vision
 
-**Current version spec: [`docs/v1-spec.md`](../docs/v1-spec.md)**
-When a new version starts, a new spec file is added (`docs/v2-spec.md`, …) and
-this pointer is updated. The previous spec is kept for reference.
+A drag-and-drop **agent builder focused on infrastructure**: a tool for
+visually composing what gets deployed on a **private (on-prem)** cluster
+versus a **public (cloud)** cluster — which services, which agents, which data
+sources. The concrete starting point is a single hardcoded example of the kind
+of system the builder would let you compose: an agent that answers questions
+using both public and private data while guaranteeing private data never
+leaves the private cluster.
+
+The project is developed as a series of versioned prototypes, each adding
+exactly one major piece on top of the last. See [`specs/index.md`](../specs/index.md)
+for the full roadmap. Significant decisions and their rationale are logged in
+[`DECISIONS.md`](../DECISIONS.md).
+
+**Current version spec: [`specs/v1-spec.md`](../specs/v1-spec.md)**
+
+When a new version starts, a new spec file is added (`specs/v2-spec.md`, …)
+and this pointer is updated. Previous specs are kept for reference.
 
 ## The one invariant that must never break: the one-way membrane
 
@@ -20,19 +32,48 @@ before touching the orchestrator or the public worker.
   in private text must never be passed to the public worker.
 
 Any change to cross-cluster code requires a test that asserts this. Treat a
-boundary violation as a release blocker, not a warning.
+boundary violation as a release blocker, not a warning. As of V1 this is a
+trivial contract on an empty system; it becomes meaningful starting at V3 once
+private data exists (see `specs/v3-spec.md`).
 
-## Request flow (every query is hybrid)
+## Request flow (V1)
 
 1. Ingest — orchestrator (private) receives the query.
-2. Public retrieval — orchestrator sends **only the query** to the public worker; gets public context back.
-3. Private retrieval — orchestrator retrieves private chunks locally, in parallel. Never leaves the private cluster.
-4. Synthesis — the **local** model answers using public + private context (runs locally because it sees private text).
-5. Return — answer returned to the user inside the private environment.
+2. Forward — orchestrator sends **only the query** to the public worker over
+   plain HTTP; gets back a canned response.
+3. Return — the response is returned to the user inside the private
+   environment.
+
+This flow gains steps as later versions land (private retrieval in V3, public
+retrieval in V4, local synthesis in V5) — see `specs/index.md` for the full
+sequence. Each `vN-spec.md` documents the request flow for that version.
+
+## Branching strategy
+
+Three branch types:
+
+- **`main`** — always a clean, working milestone. Corresponds to a completed
+  `specs/vN-spec.md`.
+- **`dev`** — integration branch for current work.
+- **`feat/*`** — one branch per logical change.
+
+Promotion flow:
+
+- `feat/*`: commit + push after every logical change (work stays backed up on
+  GitHub continuously).
+- `feat/*` → `dev`: direct merge once tests pass on the feature branch.
+  Squash messy WIP history; regular merge if commits are already clean
+  Conventional Commits.
+- `dev` → `main`: direct merge only at milestone boundaries — a `vN-spec.md`
+  is fully implemented and `make test` + `make test-e2e` are green. This
+  merge is the "release" of that version.
+
+No PRs — solo project, direct merges. Test gating (the Stop hook running
+`python -m pytest -q`) applies at every commit, regardless of branch.
 
 ## Development loop (follow this; it minimises manual approvals)
 
-For each logical change:
+For each logical change, on a `feat/*` branch:
 
 1. Implement the change in `src/`.
 2. **Delegate test authoring to the `test-author` subagent.** Hand it the
@@ -46,8 +87,10 @@ For each logical change:
 5. **Push immediately after every commit** (`git push`). Never leave commits
    sitting locally. The push and the commit are a single atomic step.
 6. Build/deploy the docs (`mkdocs build`).
-7. Continue to the next change. Run the `code-reviewer` subagent at the end of a
-   milestone (or when asked) to catch redundancy, bugs, and boundary leaks.
+7. Continue to the next change. When the feature is complete and tests pass,
+   merge `feat/*` → `dev` (see Branching strategy above). Run the
+   `code-reviewer` subagent at the end of a milestone (or when asked) to catch
+   redundancy, bugs, and boundary leaks before merging `dev` → `main`.
 
 Only stop and ask the human when you hit something you cannot resolve — a
 missing credential, a permission you were not granted, or a genuinely ambiguous

@@ -32,7 +32,14 @@
       "Bash(PYTHONPATH=src pylint src/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
       "Bash(PYTHONPATH=src pylint src/ tests/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
       "Bash(PYTHONPATH=src pylint tests/ --disable=all --enable=C0114,C0115,C0116)",
-      "Bash(PYTHONPATH=src python -m pytest tests/unit/ tests/integration/boundary/ -q)"
+      "Bash(PYTHONPATH=src python -m pytest tests/unit/ tests/integration/boundary/ -q)",
+      "Read(//home/user/.ssh/**)",
+      "Bash(ssh-add -l)",
+      "Bash(git rm *)",
+      "Bash(uv --version)",
+      "Bash(uv lock *)",
+      "Bash(make test *)",
+      "Bash(sudo docker inspect public-control-plane --format '{{.NetworkSettings.Networks.kind.IPAddress}}')"
     ],
     "deny": [
       "Read(./.env)",
