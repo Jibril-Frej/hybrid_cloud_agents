@@ -5,6 +5,26 @@ and what alternatives were considered. Newest entries at the top.
 
 ---
 
+## 2026-06-11 — Use `uv` for Python environment/dependency management
+
+**Decision:** V1 (and onward) uses `uv` instead of plain `venv` + `pip` —
+`uv venv` to create the environment, `uv sync` to install from `uv.lock`.
+Recorded in `specs/v1-spec.md`'s stack table.
+
+**Why:** `.claude/settings.json` already pre-approves `uv --version` and
+`uv lock *`, and the project previously experimented with `uv` for Docker
+dependency installs (before reverting to `requirements.txt` for layer
+caching) — there's already precedent. `uv` is fast enough that rebuilding the
+environment from scratch stops being a cost worth avoiding, which matters for
+a project whose dependency set changes from version to version. It also
+produces a lockfile (`uv.lock`) for reproducibility, unlike bare `venv`+`pip`.
+
+**Alternatives considered:** `venv` + `pip` (no lockfile, slow installs);
+Poetry (mature, but slower than `uv` and a non-standard lock format); conda
+(overkill — no non-Python binary deps needed).
+
+---
+
 ## 2026-06-11 — Executed the reset: `archive/v1-original` branch + new `main`
 
 **Decision:** Created `archive/v1-original` from the pre-reset `main` HEAD

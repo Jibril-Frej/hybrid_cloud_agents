@@ -13,6 +13,7 @@ cheap.
 | Concern | Choice |
 |---|---|
 | Language | Python 3.11+ |
+| Environment / dependency management | `uv` (`uv venv`, `uv sync`, `uv.lock`) |
 | Web framework | FastAPI + uvicorn |
 | Cross-cluster transport | Plain HTTP (no mTLS — see [v2-spec.md](v2-spec.md)) |
 | Packaging | Docker images + plain Kubernetes YAML manifests |
