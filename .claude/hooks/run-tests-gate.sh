@@ -10,8 +10,9 @@ active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false')
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-# Nothing to test yet (e.g. first scaffolding turn) — don't block.
-[ -d tests ] || exit 0
+# Nothing to test yet (e.g. first scaffolding turn, or tests/ left over from
+# a reset with only stale __pycache__ in it) — don't block.
+find tests -name '*.py' -not -path '*/__pycache__/*' 2>/dev/null | grep -q . || exit 0
 
 if output=$(python -m pytest -q 2>&1); then
   exit 0
