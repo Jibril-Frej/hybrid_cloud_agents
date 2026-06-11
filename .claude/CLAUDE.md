@@ -69,7 +69,7 @@ Promotion flow:
   merge is the "release" of that version.
 
 No PRs — solo project, direct merges. Test gating (the Stop hook running
-`python -m pytest -q`) applies at every commit, regardless of branch.
+`uv run pytest -q`) applies at every commit, regardless of branch.
 
 ## Development loop (follow this; it minimises manual approvals)
 
@@ -80,14 +80,16 @@ For each logical change, on a `feat/*` branch:
    working-tree diff so it scopes itself to what changed (it does not re-scan
    the repo). Example instruction when delegating: *"Update tests for the
    uncommitted changes only. Here is the diff: <output of `git diff HEAD`>."*
-3. Run the suite (`python -m pytest -q`). The Stop hook also enforces this — it
+3. Run the suite (`uv run pytest -q`). The Stop hook also enforces this — it
    blocks finishing while tests are red and feeds you the failures.
-4. When green, commit using **Conventional Commits** (see below). The
+4. Run **`/simplify`** on the diff (reuse, simplification, efficiency,
+   altitude cleanups) and re-run the suite if it made changes.
+5. When green, commit using **Conventional Commits** (see below). The
    commit-message hook will reject non-conforming messages.
-5. **Push immediately after every commit** (`git push`). Never leave commits
+6. **Push immediately after every commit** (`git push`). Never leave commits
    sitting locally. The push and the commit are a single atomic step.
-6. Build/deploy the docs (`mkdocs build`).
-7. Continue to the next change. When the feature is complete and tests pass,
+7. Build/deploy the docs (`mkdocs build`).
+8. Continue to the next change. When the feature is complete and tests pass,
    merge `feat/*` → `dev` (see Branching strategy above). Before merging
    `dev` → `main`, run both the `code-reviewer` subagent (redundancy, bugs,
    boundary leaks) and the `spec-compliance` subagent (does the repo actually
