@@ -88,9 +88,10 @@ For each logical change, on a `feat/*` branch:
    sitting locally. The push and the commit are a single atomic step.
 6. Build/deploy the docs (`mkdocs build`).
 7. Continue to the next change. When the feature is complete and tests pass,
-   merge `feat/*` → `dev` (see Branching strategy above). Run the
-   `code-reviewer` subagent at the end of a milestone (or when asked) to catch
-   redundancy, bugs, and boundary leaks before merging `dev` → `main`.
+   merge `feat/*` → `dev` (see Branching strategy above). Before merging
+   `dev` → `main`, run both the `code-reviewer` subagent (redundancy, bugs,
+   boundary leaks) and the `spec-compliance` subagent (does the repo actually
+   fulfil the active `vN-spec.md`).
 
 Only stop and ask the human when you hit something you cannot resolve — a
 missing credential, a permission you were not granted, or a genuinely ambiguous

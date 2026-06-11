@@ -17,29 +17,28 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git push:*)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git merge *)",
       "Bash(gh pr:*)",
       "Bash(gh repo:*)",
-      "Bash(python:*)",
-      "Bash(python3:*)",
-      "Bash(pip:*)",
-      "Bash(pytest:*)",
-      "Bash(ruff:*)",
-      "Bash(mkdocs:*)",
+      "Bash(uv run mkdocs:*)",
       "Bash(docker:*)",
       "Bash(kind:*)",
       "Bash(k3d:*)",
       "Bash(kubectl:*)",
-      "Bash(PYTHONPATH=src pylint src/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
-      "Bash(PYTHONPATH=src pylint src/ tests/ --disable=all --enable=C0114,C0115,C0116,C0103,W0603,W0718)",
-      "Bash(PYTHONPATH=src pylint tests/ --disable=all --enable=C0114,C0115,C0116)",
-      "Bash(PYTHONPATH=src python -m pytest tests/unit/ tests/integration/boundary/ -q)",
+      "Bash(uv run python:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run pytest tests/unit/ tests/integration/boundary/ -q)",
       "Read(//home/user/.ssh/**)",
       "Bash(ssh-add -l)",
       "Bash(git rm *)",
       "Bash(uv --version)",
       "Bash(uv lock *)",
-      "Bash(make test *)",
-      "Bash(sudo docker inspect public-control-plane --format '{{.NetworkSettings.Networks.kind.IPAddress}}')"
+      "Bash(uv sync*)",
+      "Bash(uv venv*)",
+      "Bash(make test *)"
     ],
     "deny": [
       "Read(./.env)",
@@ -59,6 +58,17 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-commit-msg.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-commit-docs.sh"
           }
         ]
       }
