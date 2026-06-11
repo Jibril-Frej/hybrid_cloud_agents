@@ -1,5 +1,4 @@
-"""Pydantic models for the wire contract between the orchestrator and the
-public worker.
+"""Pydantic models for the wire contract between the orchestrator and the public worker.
 
 These are the only payloads allowed to cross the cluster boundary. See
 ``.claude/skills/trust-boundary/SKILL.md`` for the one-way membrane invariant

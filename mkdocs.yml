@@ -1,0 +1,23 @@
+site_name: Hybrid Cloud Agents
+repo_url: https://github.com/Jibril-Frej/hybrid_cloud_agents
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - API Reference:
+      - Common: reference/common.md
+      - Orchestrator: reference/orchestrator.md
+      - Public Worker: reference/public.md
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
