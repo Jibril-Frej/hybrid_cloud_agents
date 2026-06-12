@@ -2,7 +2,7 @@ PRIVATE_CTX := kind-private
 PUBLIC_CTX := kind-public
 PUBLIC_NODE := public-control-plane
 
-.PHONY: clusters-up clusters-down build load-images certs load-certs deploy test test-e2e dev
+.PHONY: clusters-up clusters-down build load-images certs load-certs seed deploy test test-e2e dev
 
 clusters-up:
 	kind create cluster --name private
@@ -34,6 +34,9 @@ load-certs:
 		--from-file=server.key=certs/server.key \
 		--from-file=ca.crt=certs/ca.crt \
 		--dry-run=client -o yaml | kubectl --context $(PUBLIC_CTX) apply -f -
+
+seed:
+	uv run python -m private.ingest
 
 deploy:
 	kubectl --context $(PUBLIC_CTX) apply -f manifests/public/deployment.yaml

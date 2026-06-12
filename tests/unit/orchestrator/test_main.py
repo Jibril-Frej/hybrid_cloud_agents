@@ -15,19 +15,22 @@ class TestOrchestratorWorker:
     """Test the orchestrator FastAPI app."""
 
     def test_query_endpoint_returns_public_worker_response(self):
-        """POST /query forwards query to public worker and returns response."""
+        """POST /query forwards the query and combines the response with private context."""
         client = TestClient(app)
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"answer": "test answer"}
 
         with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
-            response = client.post("/query", json={"query": "test query"})
+            with patch("orchestrator.main.retrieve", return_value=[]):
+                response = client.post("/query", json={"query": "test query"})
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data == {"answer": "test answer"}
-            mock_post.assert_called_once()
+                assert response.status_code == 200
+                data = response.json()
+                # Response now includes private context appended to the answer
+                assert "answer" in data
+                assert "test answer" in data["answer"]
+                mock_post.assert_called_once()
 
     def test_query_endpoint_calls_public_worker_with_correct_payload(self):
         """POST /query sends only the query to public worker."""
@@ -37,11 +40,12 @@ class TestOrchestratorWorker:
         mock_response.json.return_value = {"answer": "response"}
 
         with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
-            client.post("/query", json={"query": "what is 2+2?"})
+            with patch("orchestrator.main.retrieve", return_value=[]):
+                client.post("/query", json={"query": "what is 2+2?"})
 
-            # Verify the exact payload sent to the public worker
-            call_args = mock_post.call_args
-            assert call_args[1]["json"] == {"query": "what is 2+2?"}
+                # Verify the exact payload sent to the public worker
+                call_args = mock_post.call_args
+                assert call_args[1]["json"] == {"query": "what is 2+2?"}
 
     def test_query_endpoint_uses_default_public_worker_url(self):
         """POST /query uses default PUBLIC_WORKER_URL if not set."""
@@ -51,11 +55,12 @@ class TestOrchestratorWorker:
         mock_response.json.return_value = {"answer": "response"}
 
         with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
-            client.post("/query", json={"query": "test"})
+            with patch("orchestrator.main.retrieve", return_value=[]):
+                client.post("/query", json={"query": "test"})
 
-            # Verify the default URL is used
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "https://localhost:8001/query"
+                # Verify the default URL is used
+                call_args = mock_post.call_args
+                assert call_args[0][0] == "https://localhost:8001/query"
 
     def test_query_endpoint_handles_http_error(self):
         """POST /query raises HTTPStatusError if public worker returns error."""
@@ -90,10 +95,11 @@ class TestOrchestratorWorker:
         mock_response.json.return_value = {"answer": "response"}
 
         with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
-            client.post("/query", json={"query": ""})
+            with patch("orchestrator.main.retrieve", return_value=[]):
+                client.post("/query", json={"query": ""})
 
-            call_args = mock_post.call_args
-            assert call_args[1]["json"] == {"query": ""}
+                call_args = mock_post.call_args
+                assert call_args[1]["json"] == {"query": ""}
 
     def test_mtls_kwargs_empty_when_certs_not_configured(self, monkeypatch):
         """_mtls_kwargs() returns {} when cert env vars are not set."""
@@ -128,9 +134,60 @@ class TestOrchestratorWorker:
         mock_response.json.return_value = {"answer": "response"}
 
         with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
-            client.post("/query", json={"query": "test"})
+            with patch("orchestrator.main.retrieve", return_value=[]):
+                client.post("/query", json={"query": "test"})
 
-            # Verify mTLS kwargs were passed (cert= is dropped; verify= is SSLContext)
-            call_args = mock_post.call_args
-            assert "cert" not in call_args[1]
-            assert isinstance(call_args[1]["verify"], ssl.SSLContext)
+                # Verify mTLS kwargs were passed (cert= is dropped; verify= is SSLContext)
+                call_args = mock_post.call_args
+                assert "cert" not in call_args[1]
+                assert isinstance(call_args[1]["verify"], ssl.SSLContext)
+
+    def test_query_endpoint_includes_private_context_in_response(self):
+        """POST /query includes private context retrieved locally in the response."""
+        client = TestClient(app)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"answer": "public answer"}
+
+        with patch("orchestrator.main.httpx.post", return_value=mock_response):
+            with patch(
+                "orchestrator.main.retrieve",
+                return_value=["private chunk 1", "private chunk 2"],
+            ):
+                response = client.post("/query", json={"query": "test"})
+
+                assert response.status_code == 200
+                data = response.json()
+                # Response should combine public answer with private chunks
+                assert "public answer" in data["answer"]
+                assert "private context:" in data["answer"]
+                assert "private chunk 1" in data["answer"]
+                assert "private chunk 2" in data["answer"]
+
+    def test_query_endpoint_retrieves_private_context_for_real_data(self, tmp_path, monkeypatch):
+        """POST /query retrieves real private context when data exists."""
+        # Set up a temp private data directory with a known document
+        data_dir = tmp_path / "private_data"
+        data_dir.mkdir()
+        (data_dir / "project-codenames.md").write_text("PRJ-NEBULA-7F2A is the codename")
+
+        # Set up a temp index directory
+        index_dir = tmp_path / "index"
+
+        client = TestClient(app)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"answer": "public response"}
+
+        # Monkeypatch the retriever to use our temp directories
+        with patch("orchestrator.main.httpx.post", return_value=mock_response):
+            with patch("orchestrator.retriever.PRIVATE_DATA_DIR", data_dir):
+                with patch("orchestrator.retriever.PRIVATE_INDEX_DIR", index_dir):
+                    # Query for something that matches the project codename document
+                    response = client.post(
+                        "/query", json={"query": "what is the internal project codename?"}
+                    )
+
+                    assert response.status_code == 200
+                    data = response.json()
+                    # The private context should be included in the response
+                    assert "private context:" in data["answer"]
