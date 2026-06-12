@@ -15,7 +15,7 @@ exactly one major piece on top of the last. See [`specs/index.md`](../specs/inde
 for the full roadmap. Significant decisions and their rationale are logged in
 [`DECISIONS.md`](../DECISIONS.md).
 
-**Current version spec: [`specs/v2-spec.md`](../specs/v2-spec.md)**
+**Current version spec: [`specs/v3-spec.md`](../specs/v3-spec.md)**
 
 When a new version starts, a new spec file is added (`specs/v2-spec.md`, …)
 and this pointer is updated. Previous specs are kept for reference.
@@ -36,17 +36,21 @@ boundary violation as a release blocker, not a warning. As of V1 this is a
 trivial contract on an empty system; it becomes meaningful starting at V3 once
 private data exists (see `specs/v3-spec.md`).
 
-## Request flow (V1–V2)
+## Request flow (V1–V3)
 
 1. Ingest — orchestrator (private) receives the query.
 2. Forward — orchestrator sends **only the query** to the public worker over
    mutual TLS (mTLS); gets back a canned response.
-3. Return — the response is returned to the user inside the private
+3. Retrieve — orchestrator queries the local private Chroma index for the
+   top-matching private chunks. This never crosses the boundary.
+4. Combine — the public worker's response and the private chunks are
+   combined into the final answer (templated, not yet LLM-synthesized).
+5. Return — the response is returned to the user inside the private
    environment.
 
-This flow gains steps as later versions land (private retrieval in V3, public
-retrieval in V4, local synthesis in V5) — see `specs/index.md` for the full
-sequence. Each `vN-spec.md` documents the request flow for that version.
+This flow gains steps as later versions land (public retrieval in V4, local
+synthesis in V5) — see `specs/index.md` for the full sequence. Each
+`vN-spec.md` documents the request flow for that version.
 
 ## Branching strategy
 

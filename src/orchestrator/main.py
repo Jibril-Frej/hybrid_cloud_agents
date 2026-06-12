@@ -1,8 +1,9 @@
 """FastAPI app for the orchestrator.
 
 Receives a query, forwards it to the public worker over mutually authenticated
-TLS, and returns the response unchanged. Per the one-way membrane invariant
-(see ``.claude/skills/trust-boundary/SKILL.md``), the only payload sent to the
+TLS, and combines its response with locally retrieved private context. Per
+the one-way membrane invariant (see
+``.claude/skills/trust-boundary/SKILL.md``), the only payload sent to the
 public worker is the raw query.
 """
 
@@ -13,6 +14,7 @@ import httpx
 from fastapi import FastAPI
 
 from common.models import PublicWorkerRequest, PublicWorkerResponse
+from orchestrator.retriever import retrieve
 
 PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "https://localhost:8001/query")
 PUBLIC_WORKER_CERT = os.environ.get("PUBLIC_WORKER_CERT")
@@ -39,7 +41,18 @@ def _mtls_kwargs() -> dict[str, object]:
 
 @app.post("/query")
 def query(request: PublicWorkerRequest) -> PublicWorkerResponse:
-    """Forward the query to the public worker and return its response unchanged."""
+    """Combine the public worker's response with locally retrieved private context.
+
+    The public worker only ever receives the raw query (see
+    ``.claude/skills/trust-boundary/SKILL.md``); private chunks are retrieved
+    locally afterwards and never sent anywhere.
+    """
     response = httpx.post(PUBLIC_WORKER_URL, json=request.model_dump(), **_mtls_kwargs())
     response.raise_for_status()
-    return PublicWorkerResponse.model_validate(response.json())
+    public_response = PublicWorkerResponse.model_validate(response.json())
+
+    private_chunks = retrieve(request.query)
+
+    return PublicWorkerResponse(
+        answer=f"{public_response.answer} | private context: {private_chunks}"
+    )

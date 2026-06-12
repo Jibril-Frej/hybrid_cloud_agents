@@ -243,4 +243,6 @@ class TestOrchestratorMTLS:
         # Assert successful response with the expected format
         assert response.status_code == 200
         data = response.json()
-        assert data == {"answer": "public worker received: test query over mtls"}
+        # The answer now includes private context appended locally
+        assert "answer" in data
+        assert "public worker received: test query over mtls" in data["answer"]

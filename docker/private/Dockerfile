@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 COPY src/ src/
+COPY data/private/ data/private/
 
 RUN uv sync --frozen --no-dev
 
