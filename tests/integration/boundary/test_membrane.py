@@ -77,3 +77,38 @@ class TestOnewayMembrane:
 
         assert len(fake_worker.requests) == 1
         assert fake_worker.requests[0] == {"query": query_text}
+
+    def test_private_data_marker_never_crosses_boundary(self, fake_worker, tmp_path, monkeypatch):
+        """Private data (e.g., project codename) never appears in requests to the public worker.
+
+        This test verifies that even when a query retrieves sensitive private
+        documents, the orchestrator never sends them to the public worker.
+        """
+        # Set up a temp private data directory with the confidential marker
+        data_dir = tmp_path / "private_data"
+        data_dir.mkdir()
+        (data_dir / "project-codenames.md").write_text(
+            "This document lists internal-only codenames for active initiatives. "
+            "It must never leave the private cluster.\n\n"
+            "The hybrid cloud agents initiative is internally referred to by the "
+            "codename PRJ-NEBULA-7F2A."
+        )
+
+        # Set up a temp index directory
+        index_dir = tmp_path / "chroma_index"
+
+        client = TestClient(orchestrator_app)
+
+        # Patch retriever to use our temp directories
+        with patch("orchestrator.retriever.PRIVATE_DATA_DIR", data_dir):
+            with patch("orchestrator.retriever.PRIVATE_INDEX_DIR", index_dir):
+                # Query designed to retrieve the project-codenames document
+                client.post("/query", json={"query": "what is the internal project codename?"})
+
+        # The confidential marker string must never appear in any request to the public worker
+        assert len(fake_worker.requests) == 1
+        request_data = str(fake_worker.requests[0])
+        # The specific marker PRJ-NEBULA-7F2A must never cross the boundary
+        assert "PRJ-NEBULA-7F2A" not in request_data
+        # But the request should still be exactly {"query": "..."}
+        assert fake_worker.requests[0]["query"] == "what is the internal project codename?"
