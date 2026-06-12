@@ -1,18 +1,30 @@
 """FastAPI app for the public worker.
 
-Receives a query from the orchestrator and returns a canned response. V1 has
-no retrieval or AI — this is pure plumbing to prove the cross-cluster HTTP
-path works.
+Receives a query from the orchestrator and returns matching chunks from the
+public Chroma index.
 """
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from common.models import PublicWorkerRequest, PublicWorkerResponse
+from public.retriever import retrieve, warm_up
 
-app = FastAPI(title="public-worker")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Build the public Chroma index before serving requests (see `warm_up`)."""
+    warm_up()
+    yield
+
+
+app = FastAPI(title="public-worker", lifespan=lifespan)
 
 
 @app.post("/query")
 def query(request: PublicWorkerRequest) -> PublicWorkerResponse:
-    """Return a canned response acknowledging the received query."""
-    return PublicWorkerResponse(answer=f"public worker received: {request.query}")
+    """Return the public document chunks most relevant to the query."""
+    chunks = retrieve(request.query)
+    return PublicWorkerResponse(answer="\n".join(chunks))
