@@ -36,4 +36,9 @@ def test_orchestrator_forwards_query_to_public_worker():
 
     response.raise_for_status()
     answer = response.json()["answer"]
-    assert answer.startswith("public worker received: hello from e2e | private context: [")
+    # The public worker now returns retrieved public chunks (no longer a
+    # canned "public worker received: ..." string), followed by the
+    # orchestrator's locally retrieved private context.
+    public_part, _, private_part = answer.partition(" | private context: [")
+    assert public_part  # non-empty: public worker retrieved at least one chunk
+    assert private_part.endswith("]")
