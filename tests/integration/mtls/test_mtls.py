@@ -25,14 +25,33 @@ import orchestrator.main
 from tests.conftest import REPO_ROOT
 
 
-def _trust(ca_cert_path: Path) -> ssl.SSLContext:
-    """Build an SSL context that trusts the given CA certificate.
+def _trust(
+    ca_cert_path: Path, cert_path: Path | None = None, key_path: Path | None = None
+) -> ssl.SSLContext:
+    """Build an SSL context that trusts the given CA and, optionally, presents a client cert.
 
-    httpx's string-path form of `verify=` is deprecated and, in the version
-    pinned here, silently mishandles the handshake when a client cert is also
-    set — so tests must pass an explicit SSLContext.
+    httpx's string-path form of `verify=` is deprecated, and so is its
+    `cert=` kwarg — both the CA and the client cert/key must be combined into
+    a single ssl.SSLContext passed as `verify=`.
     """
-    return ssl.create_default_context(cafile=str(ca_cert_path))
+    context = ssl.create_default_context(cafile=str(ca_cert_path))
+    if cert_path is not None and key_path is not None:
+        context.load_cert_chain(str(cert_path), str(key_path))
+    return context
+
+
+class TestTrustHelper:
+    """Unit tests for the _trust() helper function."""
+
+    @pytest.mark.parametrize("missing", ["key", "cert"])
+    def test_trust_ignores_incomplete_cert_pair(self, temp_certs_dir, missing):
+        """_trust() ignores cert_path/key_path if only one of the pair is given."""
+        ca_path = temp_certs_dir["good"] / "ca.crt"
+        cert_path = None if missing == "cert" else temp_certs_dir["good"] / "client.crt"
+        key_path = None if missing == "key" else temp_certs_dir["good"] / "client.key"
+
+        context = _trust(ca_path, cert_path, key_path)
+        assert isinstance(context, ssl.SSLContext)
 
 
 def _find_free_port() -> int:
@@ -136,8 +155,7 @@ class TestMTLSEnforcement:
         good_dir = public_worker_server["good_dir"]
 
         client = httpx.Client(
-            cert=(str(good_dir / "client.crt"), str(good_dir / "client.key")),
-            verify=_trust(good_dir / "ca.crt"),
+            verify=_trust(good_dir / "ca.crt", good_dir / "client.crt", good_dir / "client.key"),
         )
 
         response = client.post(url, json={"query": "test query"})
@@ -178,8 +196,7 @@ class TestMTLSEnforcement:
         # Client with cert signed by bad CA, trying to connect to server
         # that only trusts the good CA
         client = httpx.Client(
-            cert=(str(bad_dir / "client.crt"), str(bad_dir / "client.key")),
-            verify=_trust(good_dir / "ca.crt"),
+            verify=_trust(good_dir / "ca.crt", bad_dir / "client.crt", bad_dir / "client.key"),
         )
 
         with pytest.raises((httpx.ConnectError, httpx.ReadError, ssl.SSLError)):
