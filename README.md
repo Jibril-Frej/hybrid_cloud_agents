@@ -17,6 +17,34 @@ encryption yet). The full prior prototype (LangGraph + Chroma + local LLM +
 mTLS) is preserved on the `archive/v1-original` branch and will be
 reintroduced incrementally in later versions.
 
+## Architecture (V1)
+
+Two independent `kind` clusters, one HTTP call between them. The orchestrator
+forwards only the raw query; the public worker returns a canned answer.
+
+```mermaid
+flowchart LR
+    User(["User"])
+
+    subgraph Private["Private cluster (kind-private)"]
+        Orchestrator["orchestrator\nFastAPI :8000"]
+    end
+
+    subgraph Public["Public cluster (kind-public)"]
+        PublicWorker["public-worker\nFastAPI :8001"]
+    end
+
+    User -->|"POST /query\n{query}"| Orchestrator
+    Orchestrator -->|"POST /query\nHTTP, {query} only"| PublicWorker
+    PublicWorker -->|"{answer}"| Orchestrator
+    Orchestrator -->|"{answer}"| User
+```
+
+The two clusters share a Docker network (`kind`) for connectivity but have no
+cross-cluster DNS, so `make deploy` resolves the public node's address and
+patches it into the orchestrator's `hostAliases` (see `Makefile`). Plain HTTP
+is used in V1; mTLS is reserved for V2.
+
 ## Stack and why
 
 - **uv** — single tool for the venv, dependency resolution, and a lockfile
