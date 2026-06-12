@@ -51,7 +51,7 @@ flowchart LR
     User -->|"POST /query\n{query}"| Orchestrator
     Orchestrator -->|"POST /query\nmTLS, {query} only"| PublicWorker
     PublicWorker -->|"{answer}\n(public chunks)"| Orchestrator
-    Orchestrator -->|"{answer} + private chunks"| User
+    Orchestrator -->|"public chunks (in {answer}) +\nprivate chunks"| User
 ```
 
 The two clusters share a Docker network (`kind`) for connectivity but have no
@@ -146,6 +146,61 @@ proving the cross-cluster path and both retrieval paths work end to end. The
 private and public Chroma indexes are each built lazily on first query from
 `data/private/`/`data/public/` (baked into their respective images); run
 `make seed` to build both ahead of time instead.
+
+## Observing the information flow
+
+`retrieve()` in both `src/orchestrator/retriever.py` and
+`src/public/retriever.py` logs each retrieved chunk at `INFO` level (query,
+rank, doc id, distance, and the full chunk text), via `logging.basicConfig`
+configured in each app's lifespan. With both clusters up
+(`make dev`), this lets you see — for a specific query — what each side's
+Chroma index retrieved, in what order, with what distance, and how those
+chunks end up in the final answer.
+
+Send a query whose answer should draw on both indexes:
+
+```console
+$ PRIVATE_IP=$(docker inspect -f '{{.NetworkSettings.Networks.kind.IPAddress}}' private-control-plane)
+$ curl -s -X POST "http://${PRIVATE_IP}:30080/query" \
+    -H "Content-Type: application/json" \
+    -d '{"query": "What are the support hours and what is the IT access policy?"}'
+```
+
+Then check each cluster's logs for the retrieval lines:
+
+```console
+$ kubectl --context kind-public logs deployment/public-worker --tail=50
+```
+
+```
+INFO:public.retriever:retrieve query='What are the support hours and what is the IT access policy?' rank=1 id='support-hours' distance=0.9262 text="# Support hours\n\nPublic support is available Monday through Friday, 09:00-17:00 UTC, via the\ncommunity forum and the public issue tracker.\n\nFor urgent production issues, customers on a paid support plan can reach the\non-call team through the status page's incident contact form, which is\nmonitored 24/7.\n"
+INFO:public.retriever:retrieve query='What are the support hours and what is the IT access policy?' rank=2 id='product-overview' distance=1.6487 text='# Product overview\n\nAcme Hybrid Suite is a platform for composing agents that span on-premise\nand cloud infrastructure. It ships as a set of containerized services that\ncan be deployed independently to a private cluster or a public cluster.\n\nThe flagship feature is a visual builder for deciding which agents, services,\nand data sources run where, with a generated deployment manifest for each\ntarget cluster.\n'
+```
+
+```console
+$ kubectl --context kind-private logs deployment/orchestrator --tail=50
+```
+
+```
+INFO:orchestrator.retriever:retrieve query='What are the support hours and what is the IT access policy?' rank=1 id='it-access-policy' distance=0.9263 text='# IT access policy\n\nAll employees must use a hardware security key for VPN access to the private\ncluster. Access requests are reviewed weekly by the platform team.\n\nLaptops are re-imaged every 18 months. Lost or stolen devices must be\nreported to IT security within one hour so credentials can be revoked.\n'
+INFO:orchestrator.retriever:retrieve query='What are the support hours and what is the IT access policy?' rank=2 id='holiday-calendar' distance=1.3222 text="# Company holiday calendar\n\nThe private cluster's maintenance window runs on the last Friday of each\nmonth, 18:00-22:00 local time.\n\nCompany-wide holidays for this year: New Year's Day, Founders' Day (March\n14), Summer Break (the week of July 4), and the Winter Shutdown (December\n24 - January 2).\n"
+```
+
+The orchestrator's response combines the public worker's answer (built from
+the public chunks above) with the private chunks retrieved locally:
+
+```json
+{
+  "answer": "# Support hours\n\nPublic support is available Monday through Friday, 09:00-17:00 UTC, via the\ncommunity forum and the public issue tracker.\n\nFor urgent production issues, customers on a paid support plan can reach the\non-call team through the status page's incident contact form, which is\nmonitored 24/7.\n\n# Product overview\n\nAcme Hybrid Suite is a platform for composing agents that span on-premise\nand cloud infrastructure. It ships as a set of containerized services that\ncan be deployed independently to a private cluster or a public cluster.\n\nThe flagship feature is a visual builder for deciding which agents, services,\nand data sources run where, with a generated deployment manifest for each\ntarget cluster.\n | private context: ['# IT access policy\\n\\nAll employees must use a hardware security key for VPN access to the private\\ncluster. Access requests are reviewed weekly by the platform team.\\n\\nLaptops are re-imaged every 18 months. Lost or stolen devices must be\\nreported to IT security within one hour so credentials can be revoked.\\n', \"# Company holiday calendar\\n\\nThe private cluster's maintenance window runs on the last Friday of each\\nmonth, 18:00-22:00 local time.\\n\\nCompany-wide holidays for this year: New Year's Day, Founders' Day (March\\n14), Summer Break (the week of July 4), and the Winter Shutdown (December\\n24 - January 2).\\n\"]"
+}
+```
+
+The first paragraph (`# Support hours`) and second (`# Product overview`) are
+the two public chunks retrieved by the public worker, in the order shown in
+its logs above; the `private context: [...]` list holds the two private
+chunks retrieved by the orchestrator, also in the order shown in its logs.
+Both retrieved sets, their order, and their distances are visible from the
+logs even though the response itself doesn't carry the scores.
 
 ## Testing
 
