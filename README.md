@@ -103,9 +103,6 @@ $ make clusters-down         # tear down both kind clusters when done
 cluster) and asserts it gets back the public worker's canned response,
 proving the cross-cluster HTTP path works.
 
-Docs (including the mkdocstrings API reference) are built with
-`uv run mkdocs build` and served locally with `uv run mkdocs serve`.
-
 ## Testing
 
 - **`tests/unit/`** — mirrors `src/`. Tests each FastAPI endpoint and the
@@ -127,7 +124,21 @@ Docs (including the mkdocstrings API reference) are built with
   load → deploy → cross-cluster HTTP → response) works end to end, not just
   the application code in isolation.
 
+## Documentation
+
+API docs (mkdocstrings reference generated from source docstrings, per
+`mkdocs.yml`) are built with [mkdocs](https://www.mkdocs.org/):
+
+```console
+$ uv run mkdocs serve   # live-reloading local preview at http://127.0.0.1:8000
+$ uv run mkdocs build   # static site in site/ (gitignored)
+```
+
 ## Decisions log
 
 Significant project decisions and their rationale are recorded in
 [`DECISIONS.md`](DECISIONS.md).
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
