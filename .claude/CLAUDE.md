@@ -15,7 +15,7 @@ exactly one major piece on top of the last. See [`specs/index.md`](../specs/inde
 for the full roadmap. Significant decisions and their rationale are logged in
 [`DECISIONS.md`](../DECISIONS.md).
 
-**Current version spec: [`specs/v1-spec.md`](../specs/v1-spec.md)**
+**Current version spec: [`specs/v2-spec.md`](../specs/v2-spec.md)**
 
 When a new version starts, a new spec file is added (`specs/v2-spec.md`, …)
 and this pointer is updated. Previous specs are kept for reference.
@@ -36,11 +36,11 @@ boundary violation as a release blocker, not a warning. As of V1 this is a
 trivial contract on an empty system; it becomes meaningful starting at V3 once
 private data exists (see `specs/v3-spec.md`).
 
-## Request flow (V1)
+## Request flow (V1–V2)
 
 1. Ingest — orchestrator (private) receives the query.
 2. Forward — orchestrator sends **only the query** to the public worker over
-   plain HTTP; gets back a canned response.
+   mutual TLS (mTLS); gets back a canned response.
 3. Return — the response is returned to the user inside the private
    environment.
 
