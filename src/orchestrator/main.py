@@ -7,6 +7,7 @@ the one-way membrane invariant (see
 public worker is the raw query.
 """
 
+import logging
 import os
 import ssl
 from collections.abc import AsyncIterator
@@ -26,7 +27,8 @@ PUBLIC_WORKER_CA = os.environ.get("PUBLIC_WORKER_CA")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Build the private Chroma index before serving requests (see `warm_up`)."""
+    """Configure logging and build the private Chroma index (see `warm_up`)."""
+    logging.basicConfig(level=logging.INFO)
     warm_up()
     yield
 

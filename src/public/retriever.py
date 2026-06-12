@@ -6,11 +6,15 @@ document excerpts and may be returned to the orchestrator freely (see
 unrestricted).
 """
 
+import logging
+
 import chromadb
 from chromadb.errors import NotFoundError
 
 from common.paths import PUBLIC_DATA_DIR, PUBLIC_INDEX_DIR
 from public.ingest import COLLECTION_NAME, build_index
+
+logger = logging.getLogger(__name__)
 
 
 def _get_collection() -> chromadb.Collection:
@@ -52,4 +56,20 @@ def retrieve(query: str, top_k: int = 2) -> list[str]:
         return []
 
     results = collection.query(query_texts=[query], n_results=min(top_k, count))
-    return results["documents"][0]
+    ids, distances, documents = (
+        results["ids"][0],
+        results["distances"][0],
+        results["documents"][0],
+    )
+    for rank, (doc_id, distance, text) in enumerate(
+        zip(ids, distances, documents, strict=True), start=1
+    ):
+        logger.info(
+            "retrieve query=%r rank=%d id=%r distance=%.4f text=%r",
+            query,
+            rank,
+            doc_id,
+            distance,
+            text,
+        )
+    return documents
