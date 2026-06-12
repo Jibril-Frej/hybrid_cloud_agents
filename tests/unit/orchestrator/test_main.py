@@ -6,6 +6,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+import orchestrator.main
 from orchestrator.main import app
 
 
@@ -53,7 +54,7 @@ class TestOrchestratorWorker:
 
             # Verify the default URL is used
             call_args = mock_post.call_args
-            assert call_args[0][0] == "http://localhost:8001/query"
+            assert call_args[0][0] == "https://localhost:8001/query"
 
     def test_query_endpoint_handles_http_error(self):
         """POST /query raises HTTPStatusError if public worker returns error."""
@@ -92,3 +93,41 @@ class TestOrchestratorWorker:
 
             call_args = mock_post.call_args
             assert call_args[1]["json"] == {"query": ""}
+
+    def test_mtls_kwargs_empty_when_certs_not_configured(self, monkeypatch):
+        """_mtls_kwargs() returns {} when cert env vars are not set."""
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", None)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", None)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", None)
+
+        assert orchestrator.main._mtls_kwargs() == {}
+
+    def test_mtls_kwargs_populated_when_certs_configured(self, monkeypatch):
+        """_mtls_kwargs() returns cert/verify kwargs when env vars are set."""
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", "/path/to/client.crt")
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", "/path/to/client.key")
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", "/path/to/ca.crt")
+
+        assert orchestrator.main._mtls_kwargs() == {
+            "cert": ("/path/to/client.crt", "/path/to/client.key"),
+            "verify": "/path/to/ca.crt",
+        }
+
+    def test_query_endpoint_passes_mtls_kwargs_to_httpx(self, monkeypatch):
+        """POST /query passes mTLS kwargs to httpx.post when certs are configured."""
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", "/path/to/client.crt")
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", "/path/to/client.key")
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", "/path/to/ca.crt")
+
+        client = TestClient(app)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"answer": "response"}
+
+        with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
+            client.post("/query", json={"query": "test"})
+
+            # Verify mTLS kwargs were passed
+            call_args = mock_post.call_args
+            assert call_args[1]["cert"] == ("/path/to/client.crt", "/path/to/client.key")
+            assert call_args[1]["verify"] == "/path/to/ca.crt"
