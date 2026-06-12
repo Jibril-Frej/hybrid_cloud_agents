@@ -24,6 +24,17 @@ from fastapi.testclient import TestClient
 import orchestrator.main
 from tests.conftest import REPO_ROOT
 
+# A failed TLS handshake (missing/untrusted client cert) surfaces differently
+# depending on the platform's OpenSSL build: some raise ConnectError/SSLError
+# directly, others close the connection before responding, which httpx reports
+# as RemoteProtocolError.
+HANDSHAKE_FAILURE_EXCEPTIONS = (
+    httpx.ConnectError,
+    httpx.ReadError,
+    httpx.RemoteProtocolError,
+    ssl.SSLError,
+)
+
 
 def _trust(
     ca_cert_path: Path, cert_path: Path | None = None, key_path: Path | None = None
@@ -178,7 +189,7 @@ class TestMTLSEnforcement:
         # Client with no cert, but trusting the CA
         client = httpx.Client(verify=_trust(good_dir / "ca.crt"))
 
-        with pytest.raises((httpx.ConnectError, httpx.ReadError, ssl.SSLError)):
+        with pytest.raises(HANDSHAKE_FAILURE_EXCEPTIONS):
             client.post(url, json={"query": "test query"})
 
         client.close()
@@ -199,7 +210,7 @@ class TestMTLSEnforcement:
             verify=_trust(good_dir / "ca.crt", bad_dir / "client.crt", bad_dir / "client.key"),
         )
 
-        with pytest.raises((httpx.ConnectError, httpx.ReadError, ssl.SSLError)):
+        with pytest.raises(HANDSHAKE_FAILURE_EXCEPTIONS):
             client.post(url, json={"query": "test query"})
 
         client.close()
