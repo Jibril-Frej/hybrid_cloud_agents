@@ -12,6 +12,7 @@ import chromadb
 from chromadb.errors import NotFoundError
 
 from common.paths import PUBLIC_DATA_DIR, PUBLIC_INDEX_DIR
+from common.retrieval_logging import log_retrieval_results
 from public.ingest import COLLECTION_NAME, build_index
 
 logger = logging.getLogger(__name__)
@@ -61,15 +62,5 @@ def retrieve(query: str, top_k: int = 2) -> list[str]:
         results["distances"][0],
         results["documents"][0],
     )
-    for rank, (doc_id, distance, text) in enumerate(
-        zip(ids, distances, documents, strict=True), start=1
-    ):
-        logger.info(
-            "retrieve query=%r rank=%d id=%r distance=%.4f text=%r",
-            query,
-            rank,
-            doc_id,
-            distance,
-            text,
-        )
+    log_retrieval_results(logger, query, ids, distances, documents)
     return documents
