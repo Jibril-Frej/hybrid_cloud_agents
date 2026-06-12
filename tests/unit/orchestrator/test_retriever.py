@@ -1,6 +1,83 @@
 """Unit tests for orchestrator.retriever."""
 
+from unittest.mock import patch
+
 from orchestrator import retriever
+
+
+class TestWarmUp:
+    """Test the warm_up function."""
+
+    def test_warm_up_builds_index_when_missing(self, tmp_path, monkeypatch):
+        """warm_up() builds the index from PRIVATE_DATA_DIR if it doesn't exist."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "doc.md").write_text("Test document content")
+        index_dir = tmp_path / "index"
+
+        monkeypatch.setattr(retriever, "PRIVATE_DATA_DIR", data_dir)
+        monkeypatch.setattr(retriever, "PRIVATE_INDEX_DIR", index_dir)
+
+        # Index should not exist yet
+        assert not index_dir.exists()
+
+        retriever.warm_up()
+
+        # Index should be created
+        assert index_dir.exists()
+
+    def test_warm_up_is_noop_when_index_exists(self, tmp_path, monkeypatch):
+        """warm_up() does not rebuild the index if it already exists."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "doc.md").write_text("Original document")
+        index_dir = tmp_path / "index"
+
+        monkeypatch.setattr(retriever, "PRIVATE_DATA_DIR", data_dir)
+        monkeypatch.setattr(retriever, "PRIVATE_INDEX_DIR", index_dir)
+
+        retriever.warm_up()
+
+        with patch.object(retriever, "build_index") as mock_build_index:
+            retriever.warm_up()
+
+        mock_build_index.assert_not_called()
+
+    def test_warm_up_with_empty_data_directory(self, tmp_path, monkeypatch):
+        """warm_up() handles empty PRIVATE_DATA_DIR gracefully."""
+        data_dir = tmp_path / "empty_data"
+        data_dir.mkdir()
+        index_dir = tmp_path / "index"
+
+        monkeypatch.setattr(retriever, "PRIVATE_DATA_DIR", data_dir)
+        monkeypatch.setattr(retriever, "PRIVATE_INDEX_DIR", index_dir)
+
+        # Should not raise an error
+        retriever.warm_up()
+        # Index should be created even if empty
+        assert index_dir.exists()
+
+
+class TestGetCollection:
+    """Test the _get_collection helper function."""
+
+    def test_get_collection_returns_existing_collection(self, tmp_path, monkeypatch):
+        """_get_collection() returns the existing collection without rebuilding it."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "doc.md").write_text("Test document")
+        index_dir = tmp_path / "index"
+
+        monkeypatch.setattr(retriever, "PRIVATE_DATA_DIR", data_dir)
+        monkeypatch.setattr(retriever, "PRIVATE_INDEX_DIR", index_dir)
+
+        # First call builds it
+        retriever._get_collection()
+
+        with patch.object(retriever, "build_index") as mock_build_index:
+            retriever._get_collection()
+
+        mock_build_index.assert_not_called()
 
 
 class TestRetrieve:
