@@ -9,19 +9,29 @@ public worker is the raw query.
 
 import os
 import ssl
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
 
 from common.models import PublicWorkerRequest, PublicWorkerResponse
-from orchestrator.retriever import retrieve
+from orchestrator.retriever import retrieve, warm_up
 
 PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "https://localhost:8001/query")
 PUBLIC_WORKER_CERT = os.environ.get("PUBLIC_WORKER_CERT")
 PUBLIC_WORKER_KEY = os.environ.get("PUBLIC_WORKER_KEY")
 PUBLIC_WORKER_CA = os.environ.get("PUBLIC_WORKER_CA")
 
-app = FastAPI(title="orchestrator")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Build the private Chroma index before serving requests (see `warm_up`)."""
+    warm_up()
+    yield
+
+
+app = FastAPI(title="orchestrator", lifespan=lifespan)
 
 
 def _mtls_kwargs() -> dict[str, object]:
