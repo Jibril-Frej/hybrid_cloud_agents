@@ -98,16 +98,29 @@ For each logical change, on a `feat/*` branch:
    `dev` → `main`, run both the `code-reviewer` subagent (redundancy, bugs,
    boundary leaks) and the `spec-compliance` subagent (does the repo actually
    fulfil the active `vN-spec.md`).
-9. **Before `dev` → `main`, update top-level docs to match the
-   just-completed version** — this merge is the "release" of `vN`, and these
-   files are the user-facing record of what's current:
-   - `README.md` — `## Status`, the architecture section/diagram, and the
-     "Stack and why" bullets affected by this version's changes.
-   - `specs/index.md` — the "Current version" pointer.
-   - `.claude/CLAUDE.md` — the "Current version spec" pointer and the
-     "Request flow" section.
-   Commit these doc updates (`docs: ...`) as part of the milestone merge, not
-   left for a later session.
+9. **Before `dev` → `main`, run the live e2e suite** —
+   `uv run pytest -q` (and the Stop hook) exclude
+   `tests/integration/e2e/` by design (`addopts = "-m 'not e2e'"`), so a
+   change to the orchestrator's request/response shape can silently break it
+   even when everything else is green. Run:
+   ```
+   make dev && make test-e2e && make clusters-down
+   ```
+   This takes several minutes (builds images, spins up two `kind` clusters,
+   deploys). Always run `make clusters-down` afterward, including on
+   failure, so no cluster is left running. If `test-e2e` fails, fix the
+   underlying code/test (e.g. update `tests/integration/e2e/` assertions to
+   match a changed response format) before merging to `main`.
+10. **Before `dev` → `main`, update top-level docs to match the
+    just-completed version** — this merge is the "release" of `vN`, and these
+    files are the user-facing record of what's current:
+    - `README.md` — `## Status`, the architecture section/diagram, and the
+      "Stack and why" bullets affected by this version's changes.
+    - `specs/index.md` — the "Current version" pointer.
+    - `.claude/CLAUDE.md` — the "Current version spec" pointer and the
+      "Request flow" section.
+    Commit these doc updates (`docs: ...`) as part of the milestone merge, not
+    left for a later session.
 
 Only stop and ask the human when you hit something you cannot resolve — a
 missing credential, a permission you were not granted, or a genuinely ambiguous
