@@ -2,7 +2,7 @@ PRIVATE_CTX := kind-private
 PUBLIC_CTX := kind-public
 PUBLIC_NODE := public-control-plane
 
-.PHONY: clusters-up clusters-down build load-images deploy test test-e2e dev
+.PHONY: clusters-up clusters-down build load-images certs load-certs deploy test test-e2e dev
 
 clusters-up:
 	kind create cluster --name private
@@ -20,6 +20,21 @@ load-images:
 	kind load docker-image orchestrator:latest --name private
 	kind load docker-image public-worker:latest --name public
 
+certs:
+	./certs/gen-certs.sh certs
+
+load-certs:
+	kubectl --context $(PRIVATE_CTX) create secret generic mtls-certs-private \
+		--from-file=client.crt=certs/client.crt \
+		--from-file=client.key=certs/client.key \
+		--from-file=ca.crt=certs/ca.crt \
+		--dry-run=client -o yaml | kubectl --context $(PRIVATE_CTX) apply -f -
+	kubectl --context $(PUBLIC_CTX) create secret generic mtls-certs-public \
+		--from-file=server.crt=certs/server.crt \
+		--from-file=server.key=certs/server.key \
+		--from-file=ca.crt=certs/ca.crt \
+		--dry-run=client -o yaml | kubectl --context $(PUBLIC_CTX) apply -f -
+
 deploy:
 	kubectl --context $(PUBLIC_CTX) apply -f manifests/public/deployment.yaml
 	# Patch the orchestrator's hostAliases placeholder with the public node's
@@ -34,9 +49,9 @@ deploy:
 test:
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run pytest tests/unit/ tests/integration/boundary/ -q
+	uv run pytest tests/unit/ tests/integration/boundary/ tests/integration/mtls/ -q
 
 test-e2e:
 	uv run pytest tests/integration/e2e/ -m e2e -q
 
-dev: clusters-up build load-images deploy
+dev: clusters-up build load-images certs load-certs deploy

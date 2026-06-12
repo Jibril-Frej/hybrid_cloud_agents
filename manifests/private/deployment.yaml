@@ -29,7 +29,21 @@ spec:
             - containerPort: 8000
           env:
             - name: PUBLIC_WORKER_URL
-              value: "http://public-cluster:30081/query"
+              value: "https://public-cluster:30081/query"
+            - name: PUBLIC_WORKER_CERT
+              value: "/certs/client.crt"
+            - name: PUBLIC_WORKER_KEY
+              value: "/certs/client.key"
+            - name: PUBLIC_WORKER_CA
+              value: "/certs/ca.crt"
+          volumeMounts:
+            - name: mtls-certs
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: mtls-certs
+          secret:
+            secretName: mtls-certs-private
 ---
 apiVersion: v1
 kind: Service
