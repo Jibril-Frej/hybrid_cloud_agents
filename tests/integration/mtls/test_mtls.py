@@ -4,6 +4,7 @@ Asserts that:
 1. Clients with valid certificates signed by the trusted CA are accepted.
 2. Clients without certificates are rejected.
 3. Clients with certificates signed by an untrusted CA are rejected.
+4. The orchestrator can successfully call the public worker over real mTLS.
 
 This validates the transport-layer security in specs/v2-spec.md.
 """
@@ -18,9 +19,10 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
-GEN_CERTS_SCRIPT = REPO_ROOT / "certs" / "gen-certs.sh"
+import orchestrator.main
+from tests.conftest import REPO_ROOT
 
 
 def _trust(ca_cert_path: Path) -> ssl.SSLContext:
@@ -31,23 +33,6 @@ def _trust(ca_cert_path: Path) -> ssl.SSLContext:
     set — so tests must pass an explicit SSLContext.
     """
     return ssl.create_default_context(cafile=str(ca_cert_path))
-
-
-@pytest.fixture(scope="session")
-def temp_certs_dir(tmp_path_factory):
-    """Generate two unrelated cert sets (trusted and untrusted) in temp directories."""
-    good_dir = tmp_path_factory.mktemp("good_certs")
-    bad_dir = tmp_path_factory.mktemp("bad_certs")
-
-    for cert_dir in (good_dir, bad_dir):
-        subprocess.run(
-            [str(GEN_CERTS_SCRIPT), str(cert_dir)],
-            check=True,
-            cwd=REPO_ROOT,
-            capture_output=True,
-        )
-
-    return {"good": good_dir, "bad": bad_dir}
 
 
 def _find_free_port() -> int:
@@ -201,3 +186,33 @@ class TestMTLSEnforcement:
             client.post(url, json={"query": "test query"})
 
         client.close()
+
+
+class TestOrchestratorMTLS:
+    """Test the orchestrator's end-to-end mTLS communication with public worker."""
+
+    def test_orchestrator_query_endpoint_over_real_mtls(self, public_worker_server, monkeypatch):
+        """POST /query from orchestrator to public worker over real mTLS succeeds.
+
+        This is the full integration test: the orchestrator's _mtls_kwargs()
+        builds an SSLContext from real cert files and httpx.post() executes
+        the request over real mTLS to the public worker (not mocked).
+        """
+        url = public_worker_server["url"]
+        good_dir = public_worker_server["good_dir"]
+
+        # Set the orchestrator's mTLS config to point at the live public worker
+        # and the generated certs (good_dir is already trusted by the server)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_URL", url)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", str(good_dir / "client.crt"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", str(good_dir / "client.key"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", str(good_dir / "ca.crt"))
+
+        # Call the orchestrator's /query endpoint (via TestClient, no mocking of httpx.post)
+        client = TestClient(orchestrator.main.app)
+        response = client.post("/query", json={"query": "test query over mtls"})
+
+        # Assert successful response with the expected format
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"answer": "public worker received: test query over mtls"}
