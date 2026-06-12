@@ -37,6 +37,7 @@ load-certs:
 
 seed:
 	uv run python -m private.ingest
+	uv run python -m public.ingest
 
 deploy:
 	kubectl --context $(PUBLIC_CTX) apply -f manifests/public/deployment.yaml

@@ -172,8 +172,9 @@ class TestMTLSEnforcement:
         response = client.post(url, json={"query": "test query"})
         assert response.status_code == 200
         data = response.json()
+        # The public worker now returns retrieved public document chunks.
         assert "answer" in data
-        assert "public worker received" in data["answer"]
+        assert data["answer"]
 
         client.close()
 
@@ -243,6 +244,7 @@ class TestOrchestratorMTLS:
         # Assert successful response with the expected format
         assert response.status_code == 200
         data = response.json()
-        # The answer now includes private context appended locally
+        # The answer combines retrieved public chunks with private context
+        # appended locally.
         assert "answer" in data
-        assert "public worker received: test query over mtls" in data["answer"]
+        assert "private context:" in data["answer"]

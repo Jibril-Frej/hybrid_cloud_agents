@@ -21,6 +21,15 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
+          # The app builds the public Chroma index (downloading its ONNX
+          # embedding model on first run) during startup, before it binds
+          # port 8001. Without this probe, `kubectl rollout status` reports
+          # success while the pod is still warming up and not yet accepting
+          # connections.
+          readinessProbe:
+            tcpSocket:
+              port: 8001
+            periodSeconds: 1
           env:
             # uvicorn's CLI options are also settable via UVICORN_* env vars
             # (auto_envvar_prefix), so the image's CMD is unchanged and just
