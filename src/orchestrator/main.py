@@ -7,6 +7,7 @@ public worker is the raw query.
 """
 
 import os
+import ssl
 
 import httpx
 from fastapi import FastAPI
@@ -22,9 +23,17 @@ app = FastAPI(title="orchestrator")
 
 
 def _mtls_kwargs() -> dict[str, object]:
-    """Return httpx client kwargs for mTLS, or {} if certs aren't configured."""
+    """Return httpx request kwargs for mTLS, or {} if certs aren't configured.
+
+    httpx.post() has no ``cert=`` parameter, and passing a CA path string as
+    ``verify=`` alongside a client cert breaks the TLS handshake (httpx
+    ReadError). Both the CA and the client cert/key must instead be combined
+    into a single ssl.SSLContext passed as ``verify=``.
+    """
     if PUBLIC_WORKER_CERT and PUBLIC_WORKER_KEY and PUBLIC_WORKER_CA:
-        return {"cert": (PUBLIC_WORKER_CERT, PUBLIC_WORKER_KEY), "verify": PUBLIC_WORKER_CA}
+        context = ssl.create_default_context(cafile=PUBLIC_WORKER_CA)
+        context.load_cert_chain(PUBLIC_WORKER_CERT, PUBLIC_WORKER_KEY)
+        return {"verify": context}
     return {}
 
 
