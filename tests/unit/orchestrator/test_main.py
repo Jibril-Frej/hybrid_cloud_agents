@@ -11,6 +11,18 @@ import orchestrator.main
 from orchestrator.main import app
 
 
+class TestLifespan:
+    """Test the FastAPI lifespan hook."""
+
+    def test_lifespan_calls_warm_up_on_startup(self):
+        """The app's lifespan hook calls warm_up() at startup."""
+        with patch("orchestrator.main.warm_up") as mock_warm_up:
+            # TestClient as context manager triggers lifespan startup
+            with TestClient(app):
+                pass
+            mock_warm_up.assert_called_once()
+
+
 class TestOrchestratorWorker:
     """Test the orchestrator FastAPI app."""
 

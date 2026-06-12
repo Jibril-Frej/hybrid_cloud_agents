@@ -27,6 +27,15 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          # The app builds the private Chroma index (downloading its ONNX
+          # embedding model on first run) during startup, before it binds
+          # port 8000. Without this probe, `kubectl rollout status` reports
+          # success while the pod is still warming up and not yet accepting
+          # connections.
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            periodSeconds: 1
           env:
             - name: PUBLIC_WORKER_URL
               value: "https://public-cluster:30081/query"
