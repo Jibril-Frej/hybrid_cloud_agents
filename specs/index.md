@@ -22,7 +22,7 @@ Every version has its own spec file (`v1-spec.md`, `v2-spec.md`, …); the
 previous specs are kept for reference. Significant decisions and their
 rationale are logged in [`DECISIONS.md`](../DECISIONS.md).
 
-**Current version: [`v2-spec.md`](v2-spec.md)**
+**Current version: [`v3-spec.md`](v3-spec.md)**
 
 ## Roadmap
 
