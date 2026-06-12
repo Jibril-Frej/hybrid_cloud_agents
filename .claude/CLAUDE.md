@@ -94,6 +94,16 @@ For each logical change, on a `feat/*` branch:
    `dev` → `main`, run both the `code-reviewer` subagent (redundancy, bugs,
    boundary leaks) and the `spec-compliance` subagent (does the repo actually
    fulfil the active `vN-spec.md`).
+9. **Before `dev` → `main`, update top-level docs to match the
+   just-completed version** — this merge is the "release" of `vN`, and these
+   files are the user-facing record of what's current:
+   - `README.md` — `## Status`, the architecture section/diagram, and the
+     "Stack and why" bullets affected by this version's changes.
+   - `specs/index.md` — the "Current version" pointer.
+   - `.claude/CLAUDE.md` — the "Current version spec" pointer and the
+     "Request flow" section.
+   Commit these doc updates (`docs: ...`) as part of the milestone merge, not
+   left for a later session.
 
 Only stop and ask the human when you hit something you cannot resolve — a
 missing credential, a permission you were not granted, or a genuinely ambiguous
