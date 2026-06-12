@@ -115,7 +115,7 @@ private cluster (see [`specs/v3-spec.md`](specs/v3-spec.md)).
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - `openssl` — used by `certs/gen-certs.sh` to generate the mTLS CA and certs
 
-## Running V1-V2
+## Running V1-V3
 
 ```console
 $ uv sync                 # install dependencies
@@ -130,7 +130,11 @@ $ make clusters-down         # tear down both kind clusters when done
 and `make load-certs` (push them into each cluster as Secrets) before
 deploying. `make test-e2e` sends a query to the orchestrator's NodePort
 (private cluster) and asserts it gets back the public worker's canned
-response over mTLS, proving the cross-cluster path works end to end.
+response combined with locally-retrieved private context, over mTLS,
+proving the cross-cluster path and private retrieval work end to end. The
+private Chroma index is built lazily on first query from
+`data/private/` (baked into the orchestrator image); run `make seed`
+to build it ahead of time instead.
 
 ## Testing
 

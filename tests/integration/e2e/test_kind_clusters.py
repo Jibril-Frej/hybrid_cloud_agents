@@ -26,7 +26,7 @@ def _node_ip(container_name: str) -> str:
 
 @pytest.mark.e2e
 def test_orchestrator_forwards_query_to_public_worker():
-    """The orchestrator's /query forwards to the public worker and returns its answer."""
+    """The orchestrator's /query combines the public worker's answer with private context."""
     private_ip = _node_ip("private-control-plane")
 
     response = httpx.post(
@@ -35,4 +35,5 @@ def test_orchestrator_forwards_query_to_public_worker():
     )
 
     response.raise_for_status()
-    assert response.json() == {"answer": "public worker received: hello from e2e"}
+    answer = response.json()["answer"]
+    assert answer.startswith("public worker received: hello from e2e | private context: [")
