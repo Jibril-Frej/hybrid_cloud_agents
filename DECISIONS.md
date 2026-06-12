@@ -5,6 +5,31 @@ and what alternatives were considered. Newest entries at the top.
 
 ---
 
+## 2026-06-12 — Use `kind` (not k3s/k3d) for local multi-cluster Kubernetes
+
+**Decision:** V1 (and onward) models the private/public split as two
+independent `kind` clusters (`kind create cluster --name private` / `--name
+public`), each running stock upstream Kubernetes as a Docker container
+"node". Recorded in `specs/v1-spec.md`'s stack table.
+
+**Why:** `kind` is what the Kubernetes project itself uses for CI, so cluster
+behavior matches upstream with no distro-specific defaults to account for.
+Creating, loading images into, and tearing down several independent clusters
+is a single command each (`make dev` / `make clusters-down`), which matters
+for a project where clusters are recreated often. All `kind` clusters share a
+Docker network (`kind`), giving the cross-cluster connectivity this project
+needs without any cloud cost.
+
+**Alternatives considered:** `k3s` (a lightweight single-binary k8s distro —
+good for one persistent dev/edge cluster, but bundles its own defaults like
+Traefik and local-path storage that diverge from upstream); `k3d` (k3s-in-
+Docker, the multi-cluster analog of `kind` — would work, but adds k3s's extra
+components on top for no benefit over plain `kind` here); `minikube`
+(typically one VM/cluster at a time, multi-instance setups are less
+ergonomic than `kind`'s container-per-node model).
+
+---
+
 ## 2026-06-11 — Use `uv` for Python environment/dependency management
 
 **Decision:** V1 (and onward) uses `uv` instead of plain `venv` + `pip` —

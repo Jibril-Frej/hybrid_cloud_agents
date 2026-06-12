@@ -1,11 +1,13 @@
 """Unit tests for orchestrator.main."""
 
+import ssl
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+import orchestrator.main
 from orchestrator.main import app
 
 
@@ -53,7 +55,7 @@ class TestOrchestratorWorker:
 
             # Verify the default URL is used
             call_args = mock_post.call_args
-            assert call_args[0][0] == "http://localhost:8001/query"
+            assert call_args[0][0] == "https://localhost:8001/query"
 
     def test_query_endpoint_handles_http_error(self):
         """POST /query raises HTTPStatusError if public worker returns error."""
@@ -92,3 +94,43 @@ class TestOrchestratorWorker:
 
             call_args = mock_post.call_args
             assert call_args[1]["json"] == {"query": ""}
+
+    def test_mtls_kwargs_empty_when_certs_not_configured(self, monkeypatch):
+        """_mtls_kwargs() returns {} when cert env vars are not set."""
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", None)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", None)
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", None)
+
+        assert orchestrator.main._mtls_kwargs() == {}
+
+    def test_mtls_kwargs_populated_when_certs_configured(self, monkeypatch, temp_certs_dir):
+        """_mtls_kwargs() returns SSLContext as verify kwarg when env vars are set."""
+        good_dir = temp_certs_dir["good"]
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", str(good_dir / "client.crt"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", str(good_dir / "client.key"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", str(good_dir / "ca.crt"))
+
+        result = orchestrator.main._mtls_kwargs()
+
+        assert result.keys() == {"verify"}
+        assert isinstance(result["verify"], ssl.SSLContext)
+
+    def test_query_endpoint_passes_mtls_kwargs_to_httpx(self, monkeypatch, temp_certs_dir):
+        """POST /query passes SSLContext as verify kwarg to httpx.post when certs are configured."""
+        good_dir = temp_certs_dir["good"]
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CERT", str(good_dir / "client.crt"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_KEY", str(good_dir / "client.key"))
+        monkeypatch.setattr(orchestrator.main, "PUBLIC_WORKER_CA", str(good_dir / "ca.crt"))
+
+        client = TestClient(app)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"answer": "response"}
+
+        with patch("orchestrator.main.httpx.post", return_value=mock_response) as mock_post:
+            client.post("/query", json={"query": "test"})
+
+            # Verify mTLS kwargs were passed (cert= is dropped; verify= is SSLContext)
+            call_args = mock_post.call_args
+            assert "cert" not in call_args[1]
+            assert isinstance(call_args[1]["verify"], ssl.SSLContext)

@@ -17,11 +17,42 @@ encryption yet). The full prior prototype (LangGraph + Chroma + local LLM +
 mTLS) is preserved on the `archive/v1-original` branch and will be
 reintroduced incrementally in later versions.
 
+## Architecture (V1)
+
+Two independent `kind` clusters, one HTTP call between them. The orchestrator
+forwards only the raw query; the public worker returns a canned answer.
+
+```mermaid
+flowchart LR
+    User(["User"])
+
+    subgraph Private["Private cluster (kind-private)"]
+        Orchestrator["orchestrator\nFastAPI :8000"]
+    end
+
+    subgraph Public["Public cluster (kind-public)"]
+        PublicWorker["public-worker\nFastAPI :8001"]
+    end
+
+    User -->|"POST /query\n{query}"| Orchestrator
+    Orchestrator -->|"POST /query\nHTTP, {query} only"| PublicWorker
+    PublicWorker -->|"{answer}"| Orchestrator
+    Orchestrator -->|"{answer}"| User
+```
+
+The two clusters share a Docker network (`kind`) for connectivity but have no
+cross-cluster DNS, so `make deploy` resolves the public node's address and
+patches it into the orchestrator's `hostAliases` (see `Makefile`). Plain HTTP
+is used in V1; mTLS is reserved for V2.
+
 ## Stack and why
 
-- **uv** — single tool for the venv, dependency resolution, and a lockfile
-  (`uv.lock`); fast enough that recreating the environment from scratch is
-  never a cost worth avoiding. See `DECISIONS.md`.
+- **uv (not conda)** — single tool for the venv, dependency resolution, and a
+  lockfile (`uv.lock`); fast enough that recreating the environment from
+  scratch is never a cost worth avoiding. Conda's main advantage is managing
+  non-Python binary dependencies (CUDA, BLAS, compilers), which this project
+  doesn't need — every dependency is pure Python, so a conda env plus a
+  separate pip layer would just be more to keep in sync. See `DECISIONS.md`.
 - **FastAPI + uvicorn** — minimal, typed HTTP framework for both services.
   Async-capable, but V1's handlers are plain `def` — there's no concurrent
   work yet to benefit from `async`.
@@ -30,11 +61,16 @@ reintroduced incrementally in later versions.
 - **pydantic** — `PublicWorkerRequest`/`PublicWorkerResponse` in
   `src/common/models.py` define the wire contract once, shared by both
   services, so request/response shapes can't silently drift apart.
-- **Two `kind` clusters (`private`, `public`)** — the cheapest way to get two
-  genuinely separate local Kubernetes clusters that mirror the on-prem/cloud
-  split, with no cloud cost. Both clusters join the same `kind` Docker
-  network, so cross-cluster traffic is possible — but `kind` provides no
-  cross-cluster DNS, hence the `hostAliases` patch in `make deploy`.
+- **Two `kind` clusters (not k3s/k3d)** — `kind` runs each cluster node as a
+  Docker container using stock upstream Kubernetes, the same way the
+  Kubernetes project tests itself. Spinning up several independent clusters
+  is a one-liner each, with no extra components to reason about. `k3s` is a
+  lighter single-binary distro suited to one long-lived dev cluster, but it
+  bundles its own defaults (Traefik, local-path storage) and running multiple
+  isolated clusters needs `k3d` on top — more moving parts for the same
+  result here. Both clusters join the same `kind` Docker network, so
+  cross-cluster traffic is possible — but `kind` provides no cross-cluster
+  DNS, hence the `hostAliases` patch in `make deploy`.
 - **Plain HTTP, no mTLS** — V1 isolates the *topology* and the *one-way
   membrane contract* from transport security. mTLS is a self-contained,
   additive increment reserved for V2 (see `DECISIONS.md`, "V1 drops mTLS").
@@ -67,9 +103,6 @@ $ make clusters-down         # tear down both kind clusters when done
 cluster) and asserts it gets back the public worker's canned response,
 proving the cross-cluster HTTP path works.
 
-Docs (including the mkdocstrings API reference) are built with
-`uv run mkdocs build` and served locally with `uv run mkdocs serve`.
-
 ## Testing
 
 - **`tests/unit/`** — mirrors `src/`. Tests each FastAPI endpoint and the
@@ -91,7 +124,21 @@ Docs (including the mkdocstrings API reference) are built with
   load → deploy → cross-cluster HTTP → response) works end to end, not just
   the application code in isolation.
 
+## Documentation
+
+API docs (mkdocstrings reference generated from source docstrings, per
+`mkdocs.yml`) are built with [mkdocs](https://www.mkdocs.org/):
+
+```console
+$ uv run mkdocs serve   # live-reloading local preview at http://127.0.0.1:8000
+$ uv run mkdocs build   # static site in site/ (gitignored)
+```
+
 ## Decisions log
 
 Significant project decisions and their rationale are recorded in
 [`DECISIONS.md`](DECISIONS.md).
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).

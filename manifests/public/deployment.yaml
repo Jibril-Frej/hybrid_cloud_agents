@@ -21,6 +21,27 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
+          env:
+            # uvicorn's CLI options are also settable via UVICORN_* env vars
+            # (auto_envvar_prefix), so the image's CMD is unchanged and just
+            # picks up TLS config from the certs mounted below.
+            # ssl-cert-reqs=2 is ssl.CERT_REQUIRED.
+            - name: UVICORN_SSL_CERTFILE
+              value: "/certs/server.crt"
+            - name: UVICORN_SSL_KEYFILE
+              value: "/certs/server.key"
+            - name: UVICORN_SSL_CA_CERTS
+              value: "/certs/ca.crt"
+            - name: UVICORN_SSL_CERT_REQS
+              value: "2"
+          volumeMounts:
+            - name: mtls-certs
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: mtls-certs
+          secret:
+            secretName: mtls-certs-public
 ---
 # Exposed via NodePort: kind has no cross-cluster DNS, so the orchestrator
 # reaches this service through the public cluster's node IP (see

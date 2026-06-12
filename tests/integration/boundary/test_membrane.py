@@ -42,7 +42,7 @@ def fake_worker():
     """Patch httpx.post so it routes to a FakePublicWorker and returns it."""
     worker = FakePublicWorker()
 
-    def mock_post(url: str, json: dict[str, Any]) -> MagicMock:
+    def mock_post(url: str, json: dict[str, Any], **kwargs: Any) -> MagicMock:
         response = MagicMock()
         response.json.return_value = worker.handle_query(json)
         return response
